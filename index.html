@@ -1,204 +1,228 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>IPTV M3U Extractor</title>
-    <style>
-        body { font-family: Arial; padding: 20px; }
-        input { width: 300px; padding: 5px; margin: 5px; }
-        button { padding: 8px 15px; margin: 5px; }
-        textarea { width: 100%; height: 200px; margin-top: 10px; }
-        .url-box { background: #f5f5f5; padding: 10px; margin: 5px; }
-        .success { color: green; }
-        .error { color: red; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Premium IPTV</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f0f0f;
+  color: white;
+}
+
+/* HEADER */
+.header {
+  padding: 15px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: bold;
+  background: #141414;
+}
+
+/* SLIDER */
+.slider {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  overflow: hidden;
+}
+
+.slide {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+}
+
+.slide.active {
+  opacity: 1;
+}
+
+.slide-overlay {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  padding: 20px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.8));
+  font-size: 20px;
+}
+
+/* GRID */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 15px;
+  padding: 20px;
+}
+
+.channel-card {
+  background: #1c1c1c;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: 0.3s;
+  text-align: center;
+}
+
+.channel-card:hover {
+  transform: scale(1.07);
+  background: #252525;
+}
+
+.channel-card img {
+  width: 100%;
+  height: 130px;
+  object-fit: contain;
+  background: black;
+}
+
+.channel-name {
+  padding: 8px;
+  font-size: 14px;
+}
+
+/* PLAYER OVERLAY */
+.overlay {
+  position: fixed;
+  display: none;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.95);
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 999;
+}
+
+.overlay video {
+  width: 85%;
+  max-width: 1000px;
+}
+
+.close-btn {
+  margin-top: 10px;
+  padding: 8px 15px;
+  background: red;
+  border: none;
+  color: white;
+  cursor: pointer;
+  border-radius: 5px;
+}
+</style>
 </head>
 <body>
-    <h2>🔍 IPTV M3U Playlist Extractor</h2>
-    
-    <div>
-        <label>Portal URL:</label><br>
-        <input type="text" id="portalUrl" value="http://pro.reott8k.xyz:80/">
-    </div>
-    
-    <div>
-        <label>MAC Address:</label><br>
-        <input type="text" id="macAddress" value="00:1A:79:7B:BB:36">
-    </div>
-    
-    <button onclick="testAllUrls()">🔎 Test All M3U URLs</button>
-    <button onclick="extractFromPage()">🌐 Extract from Portal Page</button>
-    
-    <div id="result"></div>
-    <textarea id="m3uOutput" placeholder="M3U content will appear here..."></textarea>
-    
-    <div id="channelList"></div>
 
-    <script>
-        const patterns = [
-            // Pattern 1: get.php (most common)
-            '{portal}get.php?username={mac}&password={mac}&type=m3u_plus',
-            
-            // Pattern 2: Alternative password format
-            '{portal}get.php?username={mac}&password={macReplace}&type=m3u',
-            
-            // Pattern 3: Simple m3u
-            '{portal}{mac}/m3u',
-            
-            // Pattern 4: Portal with parameters
-            '{portal}c/?type=m3u&mac={mac}',
-            
-            // Pattern 5: LiveTV format
-            '{portal}live/{mac}/{mac}/index.m3u',
-            
-            // Pattern 6: XMLTV format (then convert)
-            '{portal}xmltv.php?username={mac}&password={mac}',
-            
-            // Pattern 7: Player API
-            '{portal}player_api.php?username={mac}&password={mac}&action=get_live_streams',
-        ];
+<div class="header">🔥 Premium IPTV</div>
 
-        function testAllUrls() {
-            const portal = document.getElementById('portalUrl').value;
-            const mac = document.getElementById('macAddress').value;
-            const macReplace = mac.replace(/:/g, '-');
-            
-            const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML = '<h3>Testing URLs...</h3>';
-            
-            patterns.forEach((pattern, index) => {
-                const url = pattern
-                    .replace('{portal}', portal)
-                    .replace('{mac}', mac)
-                    .replace('{macReplace}', macReplace);
-                
-                // Create URL box
-                const urlBox = document.createElement('div');
-                urlBox.className = 'url-box';
-                urlBox.innerHTML = `
-                    <strong>Test ${index+1}:</strong> ${url}
-                    <button onclick="testSingleUrl('${url}')">Test</button>
-                    <span id="status${index}"></span>
-                `;
-                resultDiv.appendChild(urlBox);
-            });
-        }
+<!-- SLIDER -->
+<div class="slider" id="slider"></div>
 
-        async function testSingleUrl(url) {
-            try {
-                // Use CORS proxy for testing
-                const proxyUrl = 'https://api.allorigins.win/raw?url=';
-                const response = await fetch(proxyUrl + encodeURIComponent(url));
-                
-                if(!response.ok) throw new Error(`HTTP ${response.status}`);
-                
-                const text = await response.text();
-                const m3uOutput = document.getElementById('m3uOutput');
-                
-                if(text.includes('#EXTM3U')) {
-                    // SUCCESS! Found M3U
-                    m3uOutput.value = text;
-                    
-                    // Parse channels
-                    parseM3U(text);
-                    
-                    alert(`✅ M3U FOUND! ${text.split('#EXTINF:').length-1} channels detected.`);
-                } else {
-                    m3uOutput.value = `Not M3U format. Response:\n\n${text.substring(0, 500)}...`;
-                }
-            } catch(error) {
-                alert(`❌ Error: ${error.message}`);
-            }
-        }
+<!-- CHANNEL GRID -->
+<div class="grid" id="channelGrid"></div>
 
-        function parseM3U(m3uContent) {
-            const lines = m3uContent.split('\n');
-            const channels = [];
-            let currentChannel = {};
-            
-            lines.forEach(line => {
-                line = line.trim();
-                
-                if(line.startsWith('#EXTINF:')) {
-                    // Parse channel info
-                    const match = line.match(/#EXTINF:-?\d+(?: tvg-id="([^"]*)")? tvg-name="([^"]*)"?.*,(.*)/);
-                    if(match) {
-                        currentChannel = {
-                            name: match[3] || 'Unknown',
-                            tvgId: match[1] || '',
-                            tvgName: match[2] || ''
-                        };
-                    }
-                } else if(line && !line.startsWith('#') && currentChannel.name) {
-                    // This is the stream URL
-                    currentChannel.url = line;
-                    channels.push({...currentChannel});
-                    currentChannel = {};
-                }
-            });
-            
-            // Display channels
-            const channelList = document.getElementById('channelList');
-            if(channels.length > 0) {
-                channelList.innerHTML = `
-                    <h3>📺 Found ${channels.length} Channels:</h3>
-                    <ul>
-                        ${channels.slice(0, 20).map(ch => 
-                            `<li>${ch.name} <button onclick="playStream('${ch.url}')">Play</button></li>`
-                        ).join('')}
-                    </ul>
-                    ${channels.length > 20 ? `<p>... and ${channels.length-20} more channels</p>` : ''}
-                `;
-            }
-        }
+<!-- PLAYER -->
+<div class="overlay" id="playerOverlay">
+  <video id="videoPlayer" controls autoplay></video>
+  <button class="close-btn" onclick="closePlayer()">Close</button>
+</div>
 
-        function playStream(url) {
-            // Test if stream is playable
-            const video = document.createElement('video');
-            video.controls = true;
-            video.width = 640;
-            video.src = url;
-            
-            const playerDiv = document.createElement('div');
-            playerDiv.innerHTML = `<h4>Testing Stream Playback</h4>`;
-            playerDiv.appendChild(video);
-            
-            document.getElementById('result').appendChild(playerDiv);
-        }
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.4.0/shaka-player.compiled.js"></script>
 
-        async function extractFromPage() {
-            const portal = document.getElementById('portalUrl').value;
-            const mac = document.getElementById('macAddress').value;
-            
-            // Try to load portal page and look for M3U links
-            const portalUrl = `${portal}c/?mac=${mac}`;
-            
-            try {
-                const proxyUrl = 'https://api.allorigins.win/get?url=';
-                const response = await fetch(proxyUrl + encodeURIComponent(portalUrl));
-                const data = await response.json();
-                const html = data.contents;
-                
-                // Search for M3U links in HTML
-                const m3uLinks = html.match(/(https?:\/\/[^"']+\.m3u[^"']*)/gi) || [];
-                const getPhpLinks = html.match(/(get\.php[^"']+type=m3u[^"']*)/gi) || [];
-                
-                const resultDiv = document.getElementById('result');
-                resultDiv.innerHTML = `
-                    <h3>🔗 Found in Portal Page:</h3>
-                    ${m3uLinks.length > 0 ? 
-                        m3uLinks.map(link => `<div>${link} <button onclick="testSingleUrl('${link}')">Test</button></div>`).join('') :
-                        'No M3U links found in page source.'
-                    }
-                    ${getPhpLinks.length > 0 ? 
-                        getPhpLinks.map(link => `<div>${portal}${link} <button onclick="testSingleUrl('${portal}${link}')">Test</button></div>`).join('') :
-                        ''
-                    }
-                `;
-                
-            } catch(error) {
-                alert('Error loading portal page: ' + error.message);
-            }
-        }
-    </script>
+<script>
+(async () => {
+
+const playlistUrl = "https://raw.githubusercontent.com/reiyhbit/iptv/refs/heads/main/viva.m3u";
+const response = await fetch(playlistUrl);
+const text = await response.text();
+
+const lines = text.split("\n").filter(l => l.trim() !== "");
+let channels = [];
+
+for (let i = 0; i < lines.length; i++) {
+  if (lines[i].startsWith("#EXTINF")) {
+    let name = lines[i].split(",")[1] || "Unknown";
+    let logoMatch = lines[i].match(/tvg-logo="([^"]+)"/);
+    let logo = logoMatch ? logoMatch[1] : "https://via.placeholder.com/500x300?text=No+Banner";
+    let url = lines[i + 1] || "";
+    channels.push({ name: name.trim(), logo: logo, url: url.trim() });
+  }
+}
+
+/* BUILD SLIDER (first 5 channels as banner) */
+const slider = document.getElementById("slider");
+channels.slice(0,5).forEach((ch, index) => {
+  const slide = document.createElement("div");
+  slide.className = "slide";
+  slide.style.backgroundImage = `url('${ch.logo}')`;
+  if(index === 0) slide.classList.add("active");
+  slide.innerHTML = `<div class="slide-overlay">${ch.name}</div>`;
+  slider.appendChild(slide);
+});
+
+let currentSlide = 0;
+setInterval(() => {
+  const slides = document.querySelectorAll(".slide");
+  slides[currentSlide].classList.remove("active");
+  currentSlide = (currentSlide + 1) % slides.length;
+  slides[currentSlide].classList.add("active");
+}, 4000);
+
+/* BUILD GRID */
+const grid = document.getElementById("channelGrid");
+
+channels.forEach(channel => {
+  const card = document.createElement("div");
+  card.className = "channel-card";
+  card.innerHTML = `
+    <img src="${channel.logo}">
+    <div class="channel-name">${channel.name}</div>
+  `;
+  card.onclick = () => playChannel(channel.url);
+  grid.appendChild(card);
+});
+
+})();
+
+function playChannel(url) {
+  const overlay = document.getElementById("playerOverlay");
+  const video = document.getElementById("videoPlayer");
+
+  overlay.style.display = "flex";
+
+  if (Hls.isSupported()) {
+    const hls = new Hls();
+    hls.loadSource(url);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.MANIFEST_PARSED, function() {
+      video.play();
+    });
+  } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+    video.src = url;
+    video.play();
+  } else {
+    shaka.polyfill.installAll();
+    const player = new shaka.Player(video);
+    player.load(url).catch(e => console.error(e));
+  }
+}
+
+function closePlayer() {
+  const overlay = document.getElementById("playerOverlay");
+  const video = document.getElementById("videoPlayer");
+  video.pause();
+  video.src = "";
+  overlay.style.display = "none";
+}
+</script>
+
 </body>
 </html>
